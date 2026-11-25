@@ -10,7 +10,7 @@
 
 body {
   background: #0b1120;
-  color: #ffffff;
+  color: white;
   font-family: Arial, sans-serif;
   margin: 0;
   padding: 24px;
@@ -31,33 +31,37 @@ h1 span { color: #35df91; }
 
 .tagline {
   color: #94a3b8;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
 }
 
 .panel {
   background: #151e30;
   border: 1px solid #29354b;
   border-radius: 16px;
-  padding: 20px;
+  padding: 18px;
   margin-bottom: 20px;
 }
 
-textarea {
+textarea, .edit {
   width: 100%;
-  min-height: 160px;
   background: #0b1120;
   border: 1px solid #334155;
   border-radius: 10px;
-  padding: 14px;
+  padding: 12px;
   color: white;
+  font-family: inherit;
   font-size: 16px;
+}
+
+textarea {
+  min-height: 150px;
   resize: vertical;
 }
 
 button {
   width: 100%;
-  padding: 15px;
-  margin-top: 12px;
+  padding: 14px;
+  margin-top: 10px;
   border: none;
   border-radius: 10px;
   background: #35df91;
@@ -73,25 +77,73 @@ button {
 }
 
 .leg {
+  background: #0b1120;
+  border: 1px solid #29354b;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.contributor {
+  color: #35df91;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.entry {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 15px 0;
-  border-bottom: 1px solid #29354b;
+  gap: 10px;
+}
+
+.entry .edit {
+  flex: 1;
+  min-width: 0;
 }
 
 input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   accent-color: #35df91;
+  flex-shrink: 0;
+}
+
+.remove {
+  background: transparent;
+  color: #94a3b8;
+  width: auto;
+  margin: 0;
+  padding: 6px;
+  font-size: 20px;
+}
+
+.track {
+  height: 6px;
+  background: #263449;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+#bar {
+  height: 100%;
+  width: 0%;
+  background: #35df91;
+  transition: width .2s;
+}
+
+#progress, #status {
+  color: #94a3b8;
+  font-size: 13px;
 }
 
 #results { display: none; }
 
 .footer {
+  text-align: center;
   color: #64748b;
   font-size: 12px;
-  text-align: center;
 }
 </style>
 </head>
@@ -103,83 +155,224 @@ input[type="checkbox"] {
 <p class="tagline">Shared selections. Simplified.</p>
 
 <div class="panel">
-  <h3>Import a message</h3>
+  <h3>Import group message</h3>
+
+  <button class="secondary" onclick="pasteMessage()">
+    Paste from clipboard
+  </button>
+
+  <br><br>
 
   <textarea id="message"
     placeholder="Paste your group chat message here..."></textarea>
 
   <button onclick="organize()">
-    Organize selections
+    Organize message
   </button>
 
   <button class="secondary" onclick="clearAll()">
     Clear
   </button>
+
+  <p id="status" role="status"></p>
 </div>
 
 <div class="panel" id="results">
-  <h3 id="count">Your selections</h3>
-  <div id="legs"></div>
+  <h2 id="heading"></h2>
   <p id="progress"></p>
+
+  <div class="track">
+    <div id="bar"></div>
+  </div>
+
+  <div id="legs"></div>
 </div>
 
 <p class="footer">
-  LEGLINK • VERSION 1.0<br><br>
-  Personal organizer prototype.
+  LEGLINK • VERSION 2.0<br><br>
+  Personal message organizer.<br>
   No sportsbook connection or wagering.
 </p>
 
 </div>
 
 <script>
+let state = {
+  message: "",
+  title: "",
+  entries: []
+};
+
+const messageBox = document.getElementById("message");
+
+function status(text) {
+  document.getElementById("status").textContent = text;
+}
+
+function save() {
+  state.message = messageBox.value;
+
+  try {
+    localStorage.setItem("leglink_v2", JSON.stringify(state));
+  } catch {
+    status("Local saving is unavailable.");
+  }
+}
+
+async function pasteMessage() {
+  try {
+    messageBox.value = await navigator.clipboard.readText();
+    save();
+    status("Message pasted.");
+  } catch {
+    messageBox.focus();
+    status("Press and hold the text box, then select Paste.");
+  }
+}
+
 function organize() {
-  const message = document.getElementById("message").value;
-  const lines = message.split(/\n/)
+  const lines = messageBox.value
+    .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean);
 
   if (!lines.length) {
-    alert("Paste a message first.");
+    status("Paste a message first.");
     return;
   }
 
+  state.title = "Group message";
+  state.entries = [];
+
+  for (const line of lines) {
+
+    if (/^week\s+\d+/i.test(line)) {
+      state.title = line;
+      continue;
+    }
+
+    const match = line.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+
+    if (match) {
+      state.entries.push({
+        name: match[1].trim(),
+        text: match[2].trim(),
+        done: false
+      });
+    } else if (state.entries.length) {
+      state.entries[state.entries.length - 1].text += " " + line;
+    } else {
+      state.entries.push({
+        name: "",
+        text: line,
+        done: false
+      });
+    }
+  }
+
+  render();
+  save();
+  status("Message organized. Review entries for accuracy.");
+}
+
+function render() {
   const list = document.getElementById("legs");
   list.replaceChildren();
 
-  lines.forEach(line => {
-    const row = document.createElement("label");
-    row.className = "leg";
+  document.getElementById("heading").textContent =
+    state.title || "Group message";
 
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.addEventListener("change", updateProgress);
+  document.getElementById("results").style.display =
+    state.entries.length ? "block" : "none";
 
-    const text = document.createElement("span");
-    text.textContent = line;
+  state.entries.forEach((item, index) => {
+    const card = document.createElement("div");
+    card.className = "leg";
 
-    row.append(checkbox, text);
-    list.appendChild(row);
+    const name = document.createElement("div");
+    name.className = "contributor";
+    name.textContent = item.name || "Entry " + (index + 1);
+
+    const row = document.createElement("div");
+    row.className = "entry";
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = item.done;
+    check.setAttribute("aria-label", "Mark entry reviewed");
+
+    check.onchange = () => {
+      item.done = check.checked;
+      updateProgress();
+      save();
+    };
+
+    const edit = document.createElement("input");
+    edit.type = "text";
+    edit.className = "edit";
+    edit.value = item.text;
+    edit.setAttribute("aria-label", "Edit entry");
+
+    edit.oninput = () => {
+      item.text = edit.value;
+      item.done = false;
+      check.checked = false;
+      updateProgress();
+      save();
+    };
+
+    const remove = document.createElement("button");
+    remove.className = "remove";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "Remove entry");
+
+    remove.onclick = () => {
+      state.entries.splice(index, 1);
+      render();
+      save();
+    };
+
+    row.append(check, edit, remove);
+    card.append(name, row);
+    list.appendChild(card);
   });
 
-  document.getElementById("count").textContent =
-    lines.length + " selections";
-
-  document.getElementById("results").style.display = "block";
   updateProgress();
 }
 
 function updateProgress() {
-  const total = document.querySelectorAll("#legs input").length;
-  const checked = document.querySelectorAll("#legs input:checked").length;
+  const total = state.entries.length;
+  const done = state.entries.filter(item => item.done).length;
 
   document.getElementById("progress").textContent =
-    checked + " of " + total + " reviewed";
+    done + " of " + total + " entries reviewed";
+
+  document.getElementById("bar").style.width =
+    (total ? done / total * 100 : 0) + "%";
 }
 
 function clearAll() {
-  document.getElementById("message").value = "";
-  document.getElementById("legs").replaceChildren();
-  document.getElementById("results").style.display = "none";
+  if (!confirm("Clear the current message and entries?")) return;
+
+  state = { message: "", title: "", entries: [] };
+  messageBox.value = "";
+  render();
+  save();
+  status("");
+}
+
+messageBox.addEventListener("input", save);
+
+try {
+  const saved = localStorage.getItem("leglink_v2");
+
+  if (saved) {
+    state = JSON.parse(saved);
+    messageBox.value = state.message || "";
+    render();
+  }
+} catch {
+  status("Saved content could not be restored.");
 }
 </script>
 
