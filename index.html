@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LegLink</title>
+<style>
+* { box-sizing: border-box; }
+
+body {
+  background: #0b1120;
+  color: #ffffff;
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 24px;
+}
+
+.container {
+  max-width: 480px;
+  margin: auto;
+}
+
+h1 {
+  font-size: 38px;
+  letter-spacing: -2px;
+  margin-bottom: 5px;
+}
+
+h1 span { color: #35df91; }
+
+.tagline {
+  color: #94a3b8;
+  margin-bottom: 30px;
+}
+
+.panel {
+  background: #151e30;
+  border: 1px solid #29354b;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 160px;
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 14px;
+  color: white;
+  font-size: 16px;
+  resize: vertical;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #35df91;
+  color: #0b1120;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.secondary {
+  background: #263449;
+  color: white;
+}
+
+.leg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #29354b;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #35df91;
+}
+
+#results { display: none; }
+
+.footer {
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>Leg<span>Link</span></h1>
+<p class="tagline">Shared selections. Simplified.</p>
+
+<div class="panel">
+  <h3>Import a message</h3>
+
+  <textarea id="message"
+    placeholder="Paste your group chat message here..."></textarea>
+
+  <button onclick="organize()">
+    Organize selections
+  </button>
+
+  <button class="secondary" onclick="clearAll()">
+    Clear
+  </button>
+</div>
+
+<div class="panel" id="results">
+  <h3 id="count">Your selections</h3>
+  <div id="legs"></div>
+  <p id="progress"></p>
+</div>
+
+<p class="footer">
+  LEGLINK • VERSION 1.0<br><br>
+  Personal organizer prototype.
+  No sportsbook connection or wagering.
+</p>
+
+</div>
+
+<script>
+function organize() {
+  const message = document.getElementById("message").value;
+  const lines = message.split(/\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  if (!lines.length) {
+    alert("Paste a message first.");
+    return;
+  }
+
+  const list = document.getElementById("legs");
+  list.replaceChildren();
+
+  lines.forEach(line => {
+    const row = document.createElement("label");
+    row.className = "leg";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.addEventListener("change", updateProgress);
+
+    const text = document.createElement("span");
+    text.textContent = line;
+
+    row.append(checkbox, text);
+    list.appendChild(row);
+  });
+
+  document.getElementById("count").textContent =
+    lines.length + " selections";
+
+  document.getElementById("results").style.display = "block";
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = document.querySelectorAll("#legs input").length;
+  const checked = document.querySelectorAll("#legs input:checked").length;
+
+  document.getElementById("progress").textContent =
+    checked + " of " + total + " reviewed";
+}
+
+function clearAll() {
+  document.getElementById("message").value = "";
+  document.getElementById("legs").replaceChildren();
+  document.getElementById("results").style.display = "none";
+}
+</script>
+
+</body>
+</html>
